@@ -327,6 +327,182 @@
 
     .modal-btns { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px; }
 
+    /* ── Help modal ──────────────────────────────────────────── */
+    .help-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 110;
+      padding: 20px;
+    }
+    .help-overlay.hidden { display: none; }
+
+    .help-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      width: 100%;
+      max-width: 620px;
+      max-height: 88vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .help-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 22px 14px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .help-header h2 { font-size: 1rem; font-weight: 700; }
+    .help-close {
+      background: none; border: none; color: var(--muted);
+      font-size: 1.3rem; cursor: pointer; line-height: 1; padding: 0;
+    }
+    .help-close:hover { color: var(--text); }
+
+    .help-body {
+      overflow-y: auto;
+      padding: 20px 22px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 22px;
+    }
+
+    .help-section h3 {
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: #818cf8;
+      margin-bottom: 10px;
+    }
+
+    .help-steps {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .help-step {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+    .step-num {
+      flex-shrink: 0;
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      background: var(--primary-dim);
+      border: 1px solid var(--primary);
+      color: #818cf8;
+      font-size: 0.68rem;
+      font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .step-text { font-size: 0.8rem; color: var(--text); line-height: 1.5; padding-top: 2px; }
+    .step-text b { color: #c4c8f0; }
+
+    .help-legend {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+    .help-leg {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.8rem;
+    }
+    .help-leg-swatch {
+      width: 32px; height: 16px; border-radius: 3px; flex-shrink: 0;
+    }
+    .help-leg span { color: var(--text); }
+    .help-leg small { color: var(--muted); margin-left: 4px; }
+
+    .csv-block {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 12px 14px;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 0.77rem;
+      line-height: 1.8;
+      color: #a5b4fc;
+    }
+    .csv-block .cm { color: var(--muted); font-style: italic; }
+    .csv-block .val { color: #34d399; }
+
+    .abbr-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 5px 12px;
+    }
+    .abbr-item {
+      font-size: 0.75rem;
+      display: flex;
+      gap: 5px;
+    }
+    .abbr-item code {
+      color: #a5b4fc;
+      background: var(--bg);
+      border-radius: 3px;
+      padding: 0 4px;
+      font-size: 0.72rem;
+    }
+    .abbr-item span { color: var(--muted); }
+
+    .help-tab {
+      padding: 4px 12px;
+      border-radius: 5px;
+      border: 1px solid var(--border);
+      background: none;
+      color: var(--muted);
+      font-size: 0.75rem;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all .12s;
+    }
+    .help-tab:hover { border-color: #818cf8; color: var(--text); }
+    .help-tab.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+
+    .csv-builder-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 10px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 0.8rem;
+    }
+    .csv-builder-row .row-name { font-weight: 600; flex: 1; }
+    .csv-builder-row .row-tz   { color: var(--muted); font-size: 0.73rem; }
+    .csv-builder-row .row-del  {
+      background: none; border: none; color: var(--muted);
+      cursor: pointer; font-size: 0.9rem; padding: 0; opacity: 0.5;
+    }
+    .csv-builder-row .row-del:hover { opacity: 1; color: #ef4444; }
+
+    .btn-help {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      border: 1px solid var(--border);
+      background: none;
+      color: var(--muted);
+      font-size: 0.8rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      transition: border-color .12s, color .12s;
+    }
+    .btn-help:hover { border-color: #818cf8; color: #818cf8; }
+
     /* ── CSV drop overlay ────────────────────────────────────── */
     .drop-overlay {
       position: fixed; inset: 0;
@@ -349,6 +525,21 @@
       padding: 14px 28px;
       border-radius: 10px;
       border: 1px solid var(--primary);
+    }
+
+    /* ── Highlighted person column ──────────────────────────── */
+    .tz-col.highlighted-col { border-left: 2px solid #0d9488; }
+    .highlighted-col .col-head {
+      background: color-mix(in srgb, #0d9488 12%, var(--surface));
+    }
+    .highlight-badge {
+      font-size: 0.57rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      background: #0d9488;
+      color: #fff;
+      border-radius: 3px;
+      padding: 1px 5px;
     }
 
     /* ── Person working-hours highlight ─────────────────────── */
@@ -395,6 +586,132 @@
   </div>
   <span class="sel-count" id="selCount">0 selected</span>
   <button class="btn ml-auto" id="clearBtn">Clear</button>
+  <button class="btn-help" id="helpBtn" title="How to use">?</button>
+</div>
+
+<!-- ── Help modal ───────────────────────────────────────────────────────── -->
+<div class="help-overlay hidden" id="helpOverlay">
+  <div class="help-panel">
+    <div class="help-header">
+      <h2>Help</h2>
+      <div style="display:flex;gap:6px;align-items:center">
+        <button class="help-tab active" data-tab="guide" id="tabGuide">How to use</button>
+        <button class="help-tab" data-tab="csv" id="tabCsv">CSV creator</button>
+        <button class="help-close" id="helpClose">×</button>
+      </div>
+    </div>
+    <div class="help-body" id="helpBody">
+
+      <!-- ── Tab: Guide ───────────────────────────────────────── -->
+      <div id="tabGuideContent">
+
+        <div class="help-section">
+          <h3>Usage flow</h3>
+          <div class="help-steps">
+            <div class="help-step"><div class="step-num">1</div><div class="step-text"><b>Set your timezone</b> using the dropdown in the top bar. This becomes your reference column (left-most, highlighted in indigo).</div></div>
+            <div class="help-step"><div class="step-num">2</div><div class="step-text"><b>Select time slots</b> by clicking or dragging in <em>any</em> column. Each row represents the same instant across all timezones.</div></div>
+            <div class="help-step"><div class="step-num">3</div><div class="step-text"><b>Read the shadows.</b> Selected rows are colour-coded in every other column to show what time of day that moment falls in that timezone.</div></div>
+            <div class="help-step"><div class="step-num">4</div><div class="step-text"><b>Add team columns</b> via the <b>+</b> button at the right edge of the grid.</div></div>
+            <div class="help-step"><div class="step-num">5</div><div class="step-text"><b>Load a CSV</b> (drag-and-drop or <b>↑ Load CSV</b>), then pick a person from the <b>Highlight</b> dropdown to overlay their working hours.</div></div>
+          </div>
+        </div>
+
+        <div class="help-section">
+          <h3>Colour legend</h3>
+          <div class="help-legend">
+            <div class="help-leg"><div class="help-leg-swatch" style="background:var(--primary)"></div><span>Selected slot <small>— your reference column</small></span></div>
+            <div class="help-leg"><div class="help-leg-swatch" style="background:rgba(99,102,241,0.4)"></div><span>Shadow — 9 am–6 pm <small>business hours in that zone</small></span></div>
+            <div class="help-leg"><div class="help-leg-swatch" style="background:rgba(234,140,45,0.4)"></div><span>Shadow — 6 pm–10 pm <small>evening</small></span></div>
+            <div class="help-leg"><div class="help-leg-swatch" style="background:rgba(99,102,241,0.07);border:1px solid #252945"></div><span>Shadow — outside hours <small>likely asleep</small></span></div>
+            <div class="help-leg"><div class="help-leg-swatch" style="background:rgba(20,184,166,0.2)"></div><span>Work-hours band <small>highlighted person's 9 am–6 pm</small></span></div>
+            <div class="help-leg"><div class="help-leg-swatch" style="background:rgba(20,184,166,0.65)"></div><span>Overlap <small>your slot is inside their working hours</small></span></div>
+            <div class="help-leg"><div class="help-leg-swatch" style="background:transparent;border-top:2px solid #3a4068"></div><span>Midnight divider <small>day 1 → day 2 boundary</small></span></div>
+          </div>
+        </div>
+
+        <div class="help-section">
+          <h3>CSV format</h3>
+          <p style="font-size:0.8rem;color:var(--muted);margin-bottom:10px">Two columns: <code style="color:#a5b4fc">name</code> and <code style="color:#a5b4fc">timezone</code>. Header row optional.</p>
+          <div class="csv-block">
+            <span class="cm">name,timezone</span><br>
+            Alice,<span class="val">EST</span><br>
+            Bob,<span class="val">JST</span><br>
+            Carlos,<span class="val">CET</span><br>
+            Diana,<span class="val">IST</span><br>
+            Frank,<span class="val">America/New_York</span> <span class="cm">(IANA also works)</span>
+          </div>
+        </div>
+
+        <div class="help-section">
+          <h3>Supported abbreviations</h3>
+          <div class="abbr-grid">
+            <div class="abbr-item"><code>PST/PDT</code><span>Los Angeles</span></div>
+            <div class="abbr-item"><code>MST/MDT</code><span>Denver</span></div>
+            <div class="abbr-item"><code>CST/CDT</code><span>Chicago</span></div>
+            <div class="abbr-item"><code>EST/EDT</code><span>New York</span></div>
+            <div class="abbr-item"><code>AST/ADT</code><span>Halifax</span></div>
+            <div class="abbr-item"><code>BRT</code><span>São Paulo</span></div>
+            <div class="abbr-item"><code>GMT/BST</code><span>London</span></div>
+            <div class="abbr-item"><code>WET/WEST</code><span>Lisbon</span></div>
+            <div class="abbr-item"><code>CET/CEST</code><span>Paris/Berlin</span></div>
+            <div class="abbr-item"><code>EET/EEST</code><span>Helsinki</span></div>
+            <div class="abbr-item"><code>MSK</code><span>Moscow</span></div>
+            <div class="abbr-item"><code>TRT</code><span>Istanbul</span></div>
+            <div class="abbr-item"><code>GST</code><span>Dubai</span></div>
+            <div class="abbr-item"><code>PKT</code><span>Karachi</span></div>
+            <div class="abbr-item"><code>IST</code><span>Mumbai/Delhi</span></div>
+            <div class="abbr-item"><code>ICT</code><span>Bangkok</span></div>
+            <div class="abbr-item"><code>SGT/MYT</code><span>Singapore/KL</span></div>
+            <div class="abbr-item"><code>HKT</code><span>Hong Kong</span></div>
+            <div class="abbr-item"><code>CST_CN</code><span>Shanghai</span></div>
+            <div class="abbr-item"><code>JST</code><span>Tokyo</span></div>
+            <div class="abbr-item"><code>KST</code><span>Seoul</span></div>
+            <div class="abbr-item"><code>AEST/AEDT</code><span>Sydney</span></div>
+            <div class="abbr-item"><code>AWST</code><span>Perth</span></div>
+            <div class="abbr-item"><code>NZST/NZDT</code><span>Auckland</span></div>
+            <div class="abbr-item"><code>UTC/Z</code><span>UTC</span></div>
+          </div>
+        </div>
+
+      </div><!-- /tabGuideContent -->
+
+      <!-- ── Tab: CSV creator ─────────────────────────────────── -->
+      <div id="tabCsvContent" style="display:none">
+
+        <div class="help-section">
+          <h3>Add people</h3>
+          <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
+            <div class="field" style="flex:1;min-width:120px">
+              <label>Name</label>
+              <input type="text" id="csvBuilderName" placeholder="e.g. Alice" />
+            </div>
+            <div class="field" style="flex:2;min-width:160px">
+              <label>Timezone</label>
+              <select id="csvBuilderTz"></select>
+            </div>
+            <button class="btn btn-primary" id="csvBuilderAdd" style="flex-shrink:0;height:32px">+ Add</button>
+          </div>
+        </div>
+
+        <div class="help-section" id="csvBuilderListSection" style="display:none">
+          <h3>People <span id="csvBuilderCount" style="color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0"></span></h3>
+          <div id="csvBuilderList" style="display:flex;flex-direction:column;gap:5px"></div>
+        </div>
+
+        <div class="help-section" id="csvPreviewSection" style="display:none">
+          <h3>Preview</h3>
+          <div class="csv-block" id="csvPreview"></div>
+        </div>
+
+        <div style="display:flex;gap:8px;flex-wrap:wrap" id="csvBuilderActions" style="display:none">
+          <button class="btn btn-primary" id="csvDownloadBtn">↓ Download CSV</button>
+          <button class="btn" id="csvLoadBtn">Load into app</button>
+        </div>
+
+      </div><!-- /tabCsvContent -->
+
+    </div><!-- /help-body -->
+  </div>
 </div>
 
 <!-- ── Grid ─────────────────────────────────────────────────────────────── -->
@@ -626,7 +943,12 @@ function render() {
 function buildColumn(tz, label, isMine, nowFrac, teamIdx) {
   const slotH = 38; // must match --slot-h
 
-  const col  = el('div', 'tz-col' + (isMine ? ' mine' : ''));
+  const isHighlighted = !isMine && highlightPerson && highlightPerson.tz === tz && highlightPerson.name === label;
+  let colCls = 'tz-col';
+  if (isMine)         colCls += ' mine';
+  if (isHighlighted)  colCls += ' highlighted-col';
+
+  const col  = el('div', colCls);
 
   // Header
   const head   = el('div', 'col-head');
@@ -635,6 +957,11 @@ function buildColumn(tz, label, isMine, nowFrac, teamIdx) {
   if (isMine) {
     const badge = el('span', 'you-badge');
     badge.textContent = 'YOU';
+    nameEl.appendChild(badge);
+  }
+  if (isHighlighted) {
+    const badge = el('span', 'highlight-badge');
+    badge.textContent = 'HIGHLIGHTED';
     nameEl.appendChild(badge);
   }
   const offEl = el('div', 'col-offset');
@@ -850,7 +1177,14 @@ document.addEventListener('drop', e => {
 
 // Person highlight dropdown
 document.getElementById('personSel').addEventListener('change', e => {
-  highlightPerson = e.target.value !== '' ? csvPeople[+e.target.value] : null;
+  if (e.target.value === '') {
+    highlightPerson = null;
+  } else {
+    highlightPerson = csvPeople[+e.target.value];
+    // Add a column for this person if one doesn't exist yet
+    const exists = teamCols.some(c => c.tz === highlightPerson.tz && c.label === highlightPerson.name);
+    if (!exists) teamCols.push({ label: highlightPerson.name, tz: highlightPerson.tz });
+  }
   render();
 });
 
@@ -885,11 +1219,110 @@ function closeModal() {
 }
 
 document.getElementById('cancelBtn').addEventListener('click', closeModal);
+
+/* ── Help modal ──────────────────────────────────────────────────────────── */
+document.getElementById('helpBtn').addEventListener('click', () => {
+  document.getElementById('helpOverlay').classList.remove('hidden');
+});
+document.getElementById('helpClose').addEventListener('click', () => {
+  document.getElementById('helpOverlay').classList.add('hidden');
+});
+document.getElementById('helpOverlay').addEventListener('click', e => {
+  if (e.target === e.currentTarget) document.getElementById('helpOverlay').classList.add('hidden');
+});
+
+// Tab switching
+document.getElementById('tabGuide').addEventListener('click', () => switchHelpTab('guide'));
+document.getElementById('tabCsv').addEventListener('click',   () => switchHelpTab('csv'));
+
+function switchHelpTab(tab) {
+  document.getElementById('tabGuideContent').style.display = tab === 'guide' ? '' : 'none';
+  document.getElementById('tabCsvContent').style.display   = tab === 'csv'   ? '' : 'none';
+  document.getElementById('tabGuide').classList.toggle('active', tab === 'guide');
+  document.getElementById('tabCsv').classList.toggle('active',   tab === 'csv');
+}
+
+/* ── CSV builder ─────────────────────────────────────────────────────────── */
+let csvBuilderRows = [];
+
+// Populate timezone select with abbreviations (using TZ_ABBR keys + a header)
+(function populateCsvBuilderTz() {
+  const sel = document.getElementById('csvBuilderTz');
+  // Group: common abbreviations first, then IANA from TZ_LIST
+  const abbrs = Object.keys(TZ_ABBR);
+  abbrs.forEach(abbr => sel.appendChild(new Option(abbr, abbr)));
+  sel.appendChild(new Option('─── IANA ───', '', false, false));
+  TZ_LIST.forEach(({ label, tz }) => sel.appendChild(new Option(label, tz)));
+})();
+
+function renderCsvBuilder() {
+  const list    = document.getElementById('csvBuilderList');
+  const preview = document.getElementById('csvPreview');
+  const listSec = document.getElementById('csvBuilderListSection');
+  const prevSec = document.getElementById('csvPreviewSection');
+  const actions = document.getElementById('csvBuilderActions');
+  const count   = document.getElementById('csvBuilderCount');
+
+  const hasRows = csvBuilderRows.length > 0;
+  listSec.style.display = hasRows ? '' : 'none';
+  prevSec.style.display = hasRows ? '' : 'none';
+  actions.style.display = hasRows ? 'flex' : 'none';
+  count.textContent = `(${csvBuilderRows.length})`;
+
+  list.innerHTML = '';
+  csvBuilderRows.forEach((row, i) => {
+    const div = document.createElement('div');
+    div.className = 'csv-builder-row';
+    div.innerHTML = `<span class="row-name">${row.name}</span>
+      <span class="row-tz">${row.tz}</span>
+      <button class="row-del" data-i="${i}" title="Remove">×</button>`;
+    list.appendChild(div);
+  });
+  list.querySelectorAll('.row-del').forEach(btn => {
+    btn.addEventListener('click', () => {
+      csvBuilderRows.splice(+btn.dataset.i, 1);
+      renderCsvBuilder();
+    });
+  });
+
+  const lines = ['name,timezone', ...csvBuilderRows.map(r => `${r.name},${r.tz}`)];
+  preview.textContent = lines.join('\n');
+}
+
+document.getElementById('csvBuilderAdd').addEventListener('click', () => {
+  const name = document.getElementById('csvBuilderName').value.trim();
+  const tz   = document.getElementById('csvBuilderTz').value;
+  if (!name || !tz) return;
+  csvBuilderRows.push({ name, tz });
+  document.getElementById('csvBuilderName').value = '';
+  renderCsvBuilder();
+});
+document.getElementById('csvBuilderName').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('csvBuilderAdd').click();
+});
+
+document.getElementById('csvDownloadBtn').addEventListener('click', () => {
+  const lines = ['name,timezone', ...csvBuilderRows.map(r => `${r.name},${r.tz}`)];
+  const blob  = new Blob([lines.join('\n')], { type: 'text/csv' });
+  const a     = Object.assign(document.createElement('a'), {
+    href: URL.createObjectURL(blob), download: 'team-timezones.csv'
+  });
+  a.click(); URL.revokeObjectURL(a.href);
+});
+
+document.getElementById('csvLoadBtn').addEventListener('click', () => {
+  const lines = ['name,timezone', ...csvBuilderRows.map(r => `${r.name},${r.tz}`)];
+  loadCSVPeople(lines.join('\n'));
+  document.getElementById('helpOverlay').classList.add('hidden');
+});
 document.getElementById('addOverlay').addEventListener('click', e => {
   if (e.target === e.currentTarget) closeModal();
 });
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') closeModal();
+  if (e.key === 'Escape') {
+    closeModal();
+    document.getElementById('helpOverlay').classList.add('hidden');
+  }
 });
 
 document.getElementById('confirmBtn').addEventListener('click', () => {
