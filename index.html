@@ -737,14 +737,61 @@ function applySlot(i, on) {
 
 /* ── CSV helpers ─────────────────────────────────────────────────────────── */
 
+// Maps common abbreviations → IANA. IANA strings (containing '/') pass through unchanged.
+const TZ_ABBR = {
+  // Americas
+  'PST': 'America/Los_Angeles',  'PDT': 'America/Los_Angeles',
+  'MST': 'America/Denver',       'MDT': 'America/Denver',
+  'CST': 'America/Chicago',      'CDT': 'America/Chicago',
+  'EST': 'America/New_York',     'EDT': 'America/New_York',
+  'AST': 'America/Halifax',      'ADT': 'America/Halifax',
+  'NST': 'America/St_Johns',
+  'BRT': 'America/Sao_Paulo',    'BRST': 'America/Sao_Paulo',
+  // Europe
+  'GMT': 'Europe/London',        'BST': 'Europe/London',
+  'WET': 'Europe/Lisbon',        'WEST': 'Europe/Lisbon',
+  'CET': 'Europe/Paris',         'CEST': 'Europe/Paris',
+  'EET': 'Europe/Helsinki',      'EEST': 'Europe/Helsinki',
+  'MSK': 'Europe/Moscow',        'MSD':  'Europe/Moscow',
+  'TRT': 'Europe/Istanbul',
+  // Africa / Middle East
+  'EAT': 'Africa/Nairobi',
+  'CAT': 'Africa/Harare',
+  'WAT': 'Africa/Lagos',
+  'GST': 'Asia/Dubai',
+  // Asia
+  'PKT': 'Asia/Karachi',
+  'IST': 'Asia/Kolkata',
+  'BST_BD': 'Asia/Dhaka',        // disambiguate — user can write BST_BD
+  'ICT': 'Asia/Bangkok',
+  'WIB': 'Asia/Jakarta',
+  'SGT': 'Asia/Singapore',       'MYT': 'Asia/Kuala_Lumpur',
+  'HKT': 'Asia/Hong_Kong',
+  'CST_CN': 'Asia/Shanghai',     // disambiguate China Standard Time
+  'JST': 'Asia/Tokyo',
+  'KST': 'Asia/Seoul',
+  // Oceania
+  'AEST': 'Australia/Sydney',    'AEDT': 'Australia/Sydney',
+  'ACST': 'Australia/Adelaide',  'ACDT': 'Australia/Adelaide',
+  'AWST': 'Australia/Perth',
+  'NZST': 'Pacific/Auckland',    'NZDT': 'Pacific/Auckland',
+  // UTC
+  'UTC': 'UTC',                  'Z': 'UTC',
+};
+
+function resolveTimezone(raw) {
+  if (!raw) return null;
+  if (raw.includes('/')) return raw;              // already IANA
+  return TZ_ABBR[raw.toUpperCase()] ?? null;      // abbreviation lookup
+}
+
 function parseCSV(text) {
   return text.trim().split('\n')
     .map(line => {
-      // Support quoted fields and trim whitespace
       const parts = line.split(',').map(s => s.trim().replace(/^["']|["']$/g, ''));
-      return { name: parts[0], tz: parts[1] };
+      const tz = resolveTimezone(parts[1]);
+      return { name: parts[0], tz };
     })
-    // Skip header row (if present) and invalid entries
     .filter(p => p.name && p.tz && p.name.toLowerCase() !== 'name');
 }
 
