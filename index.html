@@ -503,6 +503,46 @@
     }
     .btn-help:hover { border-color: #818cf8; color: #818cf8; }
 
+    /* ── People dropdown ─────────────────────────────────────── */
+    .people-dropdown { position: relative; flex-shrink: 0; }
+    .people-dropdown-panel {
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 6px;
+      min-width: 210px;
+      max-height: 260px;
+      overflow-y: auto;
+      z-index: 80;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      box-shadow: 0 8px 24px rgba(0,0,0,.4);
+    }
+    .people-dropdown-panel.hidden { display: none; }
+    .people-check-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 8px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      color: var(--text);
+      user-select: none;
+    }
+    .people-check-item:hover { background: var(--surface2); }
+    .people-check-item input[type="checkbox"] {
+      cursor: pointer;
+      accent-color: var(--primary);
+      width: 14px; height: 14px;
+      flex-shrink: 0;
+    }
+    .people-empty-msg { font-size: 0.75rem; color: var(--muted); padding: 6px 8px; }
+
     /* ── CSV drop overlay ────────────────────────────────────── */
     .drop-overlay {
       position: fixed; inset: 0;
@@ -541,6 +581,12 @@
   <label for="myTzSel">Your timezone</label>
   <select id="myTzSel" style="min-width:190px"></select>
   <div class="divider"></div>
+  <div class="people-dropdown" id="peopleDropdown">
+    <button class="btn" id="peopleDropdownBtn">People</button>
+    <div class="people-dropdown-panel hidden" id="peopleDropdownPanel">
+      <span class="people-empty-msg">Load a CSV first</span>
+    </div>
+  </div>
   <input type="file" id="csvInput" accept=".csv" style="display:none" />
   <button class="btn" id="loadCsvBtn" title="CSV format: name,timezone">↑ Load CSV</button>
   <button class="btn" id="createCsvBtn">+ Create CSV</button>
@@ -1058,11 +1104,55 @@ function parseCSV(text) {
 function loadCSVPeople(text) {
   const incoming = parseCSV(text);
   if (!incoming.length) return;
-  // Append, skipping exact duplicates
   const existing = new Set(csvPeople.map(p => `${p.name}|${p.tz}`));
   incoming.forEach(p => { if (!existing.has(`${p.name}|${p.tz}`)) csvPeople.push(p); });
+  rebuildPeoplePanel();
   render();
 }
+
+function rebuildPeoplePanel() {
+  const panel = document.getElementById('peopleDropdownPanel');
+  panel.innerHTML = '';
+  if (!csvPeople.length) {
+    const msg = document.createElement('span');
+    msg.className = 'people-empty-msg';
+    msg.textContent = 'Load a CSV first';
+    panel.appendChild(msg);
+    return;
+  }
+  csvPeople.forEach((p, i) => {
+    const cityLabel = p.tz.split('/').pop().replace(/_/g, ' ');
+    const lbl = document.createElement('label');
+    lbl.className = 'people-check-item';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.value = i;
+    cb.checked = teamCols.some(c => c.tz === p.tz && c.label === p.name);
+    cb.addEventListener('change', e => {
+      if (e.target.checked) {
+        if (!teamCols.some(c => c.tz === p.tz && c.label === p.name))
+          teamCols.push({ label: p.name, tz: p.tz });
+      } else {
+        const idx = teamCols.findIndex(c => c.tz === p.tz && c.label === p.name);
+        if (idx !== -1) teamCols.splice(idx, 1);
+      }
+      render();
+    });
+    lbl.appendChild(cb);
+    lbl.appendChild(document.createTextNode(`${p.name}  (${cityLabel})`));
+    panel.appendChild(lbl);
+  });
+}
+
+// Dropdown toggle + close on outside click
+document.getElementById('peopleDropdownBtn').addEventListener('click', e => {
+  e.stopPropagation();
+  document.getElementById('peopleDropdownPanel').classList.toggle('hidden');
+});
+document.addEventListener('click', () => {
+  document.getElementById('peopleDropdownPanel').classList.add('hidden');
+});
+document.getElementById('peopleDropdownPanel').addEventListener('click', e => e.stopPropagation());
 
 // File-picker button
 document.getElementById('loadCsvBtn').addEventListener('click', () => {
@@ -1279,13 +1369,21 @@ function loadState() {
     if (s.myTz)      myTz      = s.myTz;
     if (s.teamCols)  teamCols  = s.teamCols;
     if (s.selected)  s.selected.forEach(i => selected.add(i));
-    if (s.csvPeople?.length) csvPeople = s.csvPeople;
+    if (s.csvPeople?.length) { csvPeople = s.csvPeople; rebuildPeoplePanel(); }
   } catch (_) {}
 }
 
 // Wrap render so every repaint also persists state
 const _render = render;
-render = function () { _render(); saveState(); };
+render = function () {
+  _render();
+  // Sync people-panel checkboxes with current teamCols
+  document.querySelectorAll('#peopleDropdownPanel input[type="checkbox"]').forEach(cb => {
+    const p = csvPeople[+cb.value];
+    if (p) cb.checked = teamCols.some(c => c.tz === p.tz && c.label === p.name);
+  });
+  saveState();
+};
 
 /* ── Init ────────────────────────────────────────────────────────────────── */
 
