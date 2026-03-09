@@ -488,47 +488,7 @@
     }
     .csv-builder-row .row-del:hover { opacity: 1; color: #ef4444; }
 
-    /* ── Person checkbox dropdown ────────────────────────────── */
-    .person-dropdown { position: relative; flex-shrink: 0; }
-    .person-dropdown-panel {
-      position: absolute;
-      top: calc(100% + 6px);
-      left: 0;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 6px;
-      min-width: 210px;
-      max-height: 260px;
-      overflow-y: auto;
-      z-index: 80;
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-      box-shadow: 0 8px 24px rgba(0,0,0,.4);
-    }
-    .person-dropdown-panel.hidden { display: none; }
-    .person-check-item {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 5px 8px;
-      border-radius: 5px;
-      cursor: pointer;
-      font-size: 0.8rem;
-      color: var(--text);
-      user-select: none;
-    }
-    .person-check-item:hover { background: var(--surface2); }
-    .person-check-item input[type="checkbox"] {
-      cursor: pointer;
-      accent-color: var(--primary);
-      width: 14px; height: 14px;
-      flex-shrink: 0;
-    }
-    .person-empty-msg { font-size: 0.75rem; color: var(--muted); padding: 6px 8px; }
-
-    .btn-help {
+.btn-help {
       width: 28px; height: 28px;
       border-radius: 50%;
       border: 1px solid var(--border);
@@ -567,36 +527,6 @@
       border: 1px solid var(--primary);
     }
 
-    /* ── Highlighted person column ──────────────────────────── */
-    .tz-col.highlighted-col { border-left: 2px solid #0d9488; }
-    .highlighted-col .col-head {
-      background: color-mix(in srgb, #0d9488 12%, var(--surface));
-    }
-    .highlight-badge {
-      font-size: 0.57rem;
-      font-weight: 600;
-      letter-spacing: 0.04em;
-      background: #0d9488;
-      color: #fff;
-      border-radius: 3px;
-      padding: 1px 5px;
-    }
-
-    /* ── Person working-hours highlight ─────────────────────── */
-    /* Light teal band: within person's 9am–6pm window */
-    .slot.work-band {
-      background: rgba(20, 184, 166, 0.09);
-    }
-    /* Overlap: your selected slot AND within person's working hours */
-    .slot.overlap {
-      background: rgba(20, 184, 166, 0.28);
-      color: #5eead4;
-    }
-    /* In "my" column: keep blue-on-selected but add teal tint for overlap */
-    .mine .slot.on.overlap {
-      background: color-mix(in srgb, #0d9488 45%, var(--primary));
-      color: #fff;
-    }
   </style>
 </head>
 <body>
@@ -611,12 +541,6 @@
   <label for="myTzSel">Your timezone</label>
   <select id="myTzSel" style="min-width:190px"></select>
   <div class="divider"></div>
-  <div class="person-dropdown" id="personDropdown">
-    <button class="btn" id="personDropdownBtn">Highlight</button>
-    <div class="person-dropdown-panel hidden" id="personDropdownPanel">
-      <span class="person-empty-msg">Load a CSV first</span>
-    </div>
-  </div>
   <input type="file" id="csvInput" accept=".csv" style="display:none" />
   <button class="btn" id="loadCsvBtn" title="CSV format: name,timezone">↑ Load CSV</button>
   <button class="btn" id="createCsvBtn">+ Create CSV</button>
@@ -624,8 +548,6 @@
   <div class="legend">
     <div class="leg"><div class="leg-dot" style="background:rgba(99,102,241,0.5)"></div>9am–6pm</div>
     <div class="leg"><div class="leg-dot" style="background:rgba(234,140,45,0.55)"></div>6pm–10pm</div>
-    <div class="leg"><div class="leg-dot" style="background:rgba(20,184,166,0.25)"></div>Work hrs</div>
-    <div class="leg"><div class="leg-dot" style="background:rgba(20,184,166,0.7)"></div>Overlap</div>
   </div>
   <span class="sel-count" id="selCount">0 selected</span>
   <button class="btn ml-auto" id="clearBtn">Clear</button>
@@ -843,8 +765,7 @@ let   dragging    = false;
 let   dragSelect  = true;
 let   dragTouched = new Set();
 
-let   csvPeople       = [];            // people loaded from CSV
-let   highlightPeople = [];           // [{ name, tz }, …] currently selected
+let   csvPeople = [];                  // people loaded from CSV
 
 /* ── Time helpers ────────────────────────────────────────────────────────── */
 
@@ -906,11 +827,6 @@ function dayOffset(ts, tz) {
   const d1 = new Intl.DateTimeFormat('en-CA', { timeZone: tz   }).format(new Date(ts));
   if (d0 === d1) return 0;
   return d1 > d0 ? 1 : -1;
-}
-
-function isWorkHour(ts, tz) {
-  const h = localHour(ts, tz);
-  return h >= 9 && h < 18;
 }
 
 function utcOffsetLabel(tz) {
@@ -981,12 +897,7 @@ function render() {
 function buildColumn(tz, label, isMine, nowFrac, teamIdx) {
   const slotH = 38; // must match --slot-h
 
-  const isHighlighted = !isMine && highlightPeople.some(p => p.tz === tz && p.name === label);
-  let colCls = 'tz-col';
-  if (isMine)         colCls += ' mine';
-  if (isHighlighted)  colCls += ' highlighted-col';
-
-  const col  = el('div', colCls);
+  const col = el('div', 'tz-col' + (isMine ? ' mine' : ''));
 
   // Header
   const head   = el('div', 'col-head');
@@ -995,11 +906,6 @@ function buildColumn(tz, label, isMine, nowFrac, teamIdx) {
   if (isMine) {
     const badge = el('span', 'you-badge');
     badge.textContent = 'YOU';
-    nameEl.appendChild(badge);
-  }
-  if (isHighlighted) {
-    const badge = el('span', 'highlight-badge');
-    badge.textContent = 'HIGHLIGHTED';
     nameEl.appendChild(badge);
   }
   const offEl = el('div', 'col-offset');
@@ -1067,25 +973,13 @@ function buildColumn(tz, label, isMine, nowFrac, teamIdx) {
       }
     });
 
-    const isSelected = selected.has(i);
-    const isWork     = highlightPeople.length > 0 && highlightPeople.every(p => isWorkHour(ts, p.tz));
-
     if (isMine) {
-      if (isSelected) slotEl.classList.add('on');
-      if (isWork)     slotEl.classList.add(isSelected ? 'overlap' : 'work-band');
-    } else {
-      if (isSelected) {
-        if (isWork) {
-          slotEl.classList.add('overlap');
-        } else {
-          const h = localHour(ts, tz);
-          if (h >= 9 && h < 18)       slotEl.classList.add('sh-work');
-          else if (h >= 18 && h < 22) slotEl.classList.add('sh-eve');
-          else                         slotEl.classList.add('sh-night');
-        }
-      } else if (isWork) {
-        slotEl.classList.add('work-band');
-      }
+      if (selected.has(i)) slotEl.classList.add('on');
+    } else if (selected.has(i)) {
+      const h = localHour(ts, tz);
+      if (h >= 9 && h < 18)       slotEl.classList.add('sh-work');
+      else if (h >= 18 && h < 22) slotEl.classList.add('sh-eve');
+      else                         slotEl.classList.add('sh-night');
     }
 
     col.appendChild(slotEl);
@@ -1160,67 +1054,6 @@ function parseCSV(text) {
     .filter(p => p.name && p.tz && p.name.toLowerCase() !== 'name');
 }
 
-function rebuildPersonSel() {
-  const panel = document.getElementById('personDropdownPanel');
-  const kept  = new Set(highlightPeople.map(p => `${p.name}|${p.tz}`));
-  panel.innerHTML = '';
-
-  if (!csvPeople.length) {
-    const msg = document.createElement('span');
-    msg.className = 'person-empty-msg';
-    msg.textContent = 'Load a CSV first';
-    panel.appendChild(msg);
-    updateHighlightBtn();
-    return;
-  }
-
-  csvPeople.forEach((p, i) => {
-    const cityLabel = p.tz.split('/').pop().replace(/_/g, ' ');
-    const label = document.createElement('label');
-    label.className = 'person-check-item';
-    const cb = document.createElement('input');
-    cb.type = 'checkbox';
-    cb.value = i;
-    cb.checked = kept.has(`${p.name}|${p.tz}`);
-    cb.addEventListener('change', onPersonCheck);
-    label.appendChild(cb);
-    label.appendChild(document.createTextNode(`${p.name}  (${cityLabel})`));
-    panel.appendChild(label);
-  });
-
-  updateHighlightBtn();
-}
-
-function updateHighlightBtn() {
-  const n   = highlightPeople.length;
-  const btn = document.getElementById('personDropdownBtn');
-  btn.textContent = n > 0 ? `Highlight (${n})` : 'Highlight';
-  btn.style.borderColor = n > 0 ? '#0d9488' : '';
-  btn.style.color       = n > 0 ? '#5eead4' : '';
-}
-
-function onPersonCheck(e) {
-  const p = csvPeople[+e.target.value];
-  if (e.target.checked) {
-    if (!highlightPeople.includes(p)) highlightPeople.push(p);
-    if (!teamCols.some(c => c.tz === p.tz && c.label === p.name))
-      teamCols.push({ label: p.name, tz: p.tz });
-  } else {
-    highlightPeople = highlightPeople.filter(h => h !== p);
-  }
-  updateHighlightBtn();
-  render();
-}
-
-// Dropdown toggle + close-on-outside-click
-document.getElementById('personDropdownBtn').addEventListener('click', e => {
-  e.stopPropagation();
-  document.getElementById('personDropdownPanel').classList.toggle('hidden');
-});
-document.addEventListener('click', () => {
-  document.getElementById('personDropdownPanel').classList.add('hidden');
-});
-document.getElementById('personDropdownPanel').addEventListener('click', e => e.stopPropagation());
 
 function loadCSVPeople(text) {
   const incoming = parseCSV(text);
@@ -1228,7 +1061,6 @@ function loadCSVPeople(text) {
   // Append, skipping exact duplicates
   const existing = new Set(csvPeople.map(p => `${p.name}|${p.tz}`));
   incoming.forEach(p => { if (!existing.has(`${p.name}|${p.tz}`)) csvPeople.push(p); });
-  rebuildPersonSel();
   render();
 }
 
@@ -1435,7 +1267,6 @@ function saveState() {
       teamCols,
       selected:        [...selected],
       csvPeople,
-      highlightIndices: highlightPeople.map(p => csvPeople.indexOf(p)).filter(i => i >= 0),
     }));
   } catch (_) {}
 }
@@ -1448,14 +1279,7 @@ function loadState() {
     if (s.myTz)      myTz      = s.myTz;
     if (s.teamCols)  teamCols  = s.teamCols;
     if (s.selected)  s.selected.forEach(i => selected.add(i));
-    if (s.csvPeople?.length) {
-      csvPeople = s.csvPeople;
-      if (s.highlightIndices?.length)
-        highlightPeople = s.highlightIndices
-          .filter(i => i >= 0 && i < csvPeople.length)
-          .map(i => csvPeople[i]);
-      rebuildPersonSel();
-    }
+    if (s.csvPeople?.length) csvPeople = s.csvPeople;
   } catch (_) {}
 }
 
