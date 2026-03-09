@@ -821,7 +821,6 @@ let   csvPeople = [];                  // people loaded from CSV
  */
 function slotToUTC(slotIdx) {
   const totalMin = SLOT_START_MIN + slotIdx * SLOT_STEP;
-  // Which day (0 = today, 1 = tomorrow) and normalized time within that day
   const dayAdd = Math.floor(totalMin / (24 * 60));
   const hNorm  = Math.floor((totalMin % (24 * 60)) / 60);
   const m      = totalMin % 60;
@@ -832,19 +831,33 @@ function slotToUTC(slotIdx) {
     year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(baseMs));
   const [yr, mo, dy] = dStr.split('-').map(Number);
 
-  // Initial UTC guess: treat local time as UTC then iterate to correct for offset
-  let t = Date.UTC(yr, mo - 1, dy, hNorm, m);
+  // Measure the actual UTC offset for myTz right now, so the initial guess
+  // is already within ~1 hour (only DST transitions can shift it further).
+  const refDate = new Date(baseMs);
+  const refP = new Intl.DateTimeFormat('en-US', {
+    timeZone: myTz, hour: '2-digit', minute: '2-digit', hour12: false
+  }).formatToParts(refDate);
+  const refLH = +refP.find(x => x.type === 'hour').value;
+  const refLM = +refP.find(x => x.type === 'minute').value;
+  const refLocalMin = (refLH === 24 ? 0 : refLH) * 60 + refLM;
+  const refUTCMin   = refDate.getUTCHours() * 60 + refDate.getUTCMinutes();
+  let offsetMin = refLocalMin - refUTCMin;
+  if (offsetMin >  720) offsetMin -= 1440;
+  if (offsetMin < -720) offsetMin += 1440;
 
-  for (let iter = 0; iter < 4; iter++) {
+  // Good initial guess: midnight UTC on that date, shifted by the offset
+  let t = Date.UTC(yr, mo - 1, dy, hNorm, m) - offsetMin * 60_000;
+
+  // Fine-tune for DST (diff should be 0 or ±60 min at most)
+  for (let iter = 0; iter < 3; iter++) {
     const p = new Intl.DateTimeFormat('en-US', {
       timeZone: myTz, hour: '2-digit', minute: '2-digit', hour12: false
     }).formatToParts(new Date(t));
-    const lh   = +p.find(x => x.type === 'hour').value;
-    const lhN  = lh === 24 ? 0 : lh;
+    const lhN  = +p.find(x => x.type === 'hour').value % 24;
     const lm   = +p.find(x => x.type === 'minute').value;
     const diff = (hNorm * 60 + m) - (lhN * 60 + lm);
     if (diff === 0) break;
-    if (Math.abs(diff) > 90) break; // DST is ≤ 1 h; large diff means wrong day — stop
+    if (Math.abs(diff) > 90) break; // guard: only DST-sized corrections expected here
     t -= diff * 60_000;
   }
   return t;
@@ -1322,7 +1335,6 @@ document.getElementById('csvDownloadBtn').addEventListener('click', () => {
 document.getElementById('csvLoadBtn').addEventListener('click', () => {
   // Replace csvPeople wholesale with the builder's current list
   csvPeople = [];
-  highlightPeople = [];
   const lines = ['name,timezone', ...csvBuilderRows.map(r => `${r.name},${r.tz}`)];
   loadCSVPeople(lines.join('\n'));
   document.getElementById('helpOverlay').classList.add('hidden');
