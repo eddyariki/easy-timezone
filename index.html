@@ -17,7 +17,6 @@
       --primary-lo:  rgba(99,102,241,0.07);
       --slot-h:      38px;
       --col-w:       152px;
-      --label-w:     68px;
       --head-h:      64px;
     }
 
@@ -125,32 +124,6 @@
       min-width: max-content;
     }
 
-    /* ── Time labels ─────────────────────────────────────────── */
-    .time-col {
-      width: var(--label-w);
-      flex-shrink: 0;
-      padding-top: var(--head-h);
-      position: sticky;
-      left: 0;
-      z-index: 20;
-      background: var(--bg);
-    }
-
-    .time-label {
-      height: var(--slot-h);
-      display: flex;
-      align-items: center;
-      justify-content: flex-end;
-      padding-right: 10px;
-      font-size: 0.66rem;
-      color: var(--muted);
-      font-variant-numeric: tabular-nums;
-    }
-    .time-label.hour-mark {
-      font-weight: 600;
-      color: #5a607a;
-    }
-
     /* ── Timezone column ─────────────────────────────────────── */
     .tz-col {
       width: var(--col-w);
@@ -237,23 +210,7 @@
     .slot.hour-start { border-top: 1px solid var(--border); }
 
     /* ── Midnight / day-change divider ──────────────────────── */
-    .slot.midnight,
-    .time-label.midnight {
-      border-top: 2px solid #3a4068;
-    }
-    .next-day-badge {
-      font-size: 0.56rem;
-      font-weight: 700;
-      letter-spacing: 0.05em;
-      color: #4a5278;
-      background: #1a1d30;
-      border: 1px solid #2e3456;
-      border-radius: 3px;
-      padding: 1px 4px;
-      margin-left: 5px;
-      flex-shrink: 0;
-    }
-    .time-label.next-day { color: #3d4468; }
+    .slot.midnight { border-top: 2px solid #3a4068; }
 
     /* all slots interactive */
     .slot { cursor: pointer; }
@@ -583,31 +540,6 @@ function render() {
 
   const grid = document.getElementById('grid');
   grid.innerHTML = '';
-
-  // ── Time labels column
-  const timeCol = el('div', 'time-col');
-  for (let i = 0; i < SLOT_COUNT; i++) {
-    const totalMin = SLOT_START_MIN + i * SLOT_STEP;
-    const hNorm    = Math.floor((totalMin % (24 * 60)) / 60);
-    const m        = totalMin % 60;
-    const isNextDay  = i >= MIDNIGHT_IDX;
-    const isMidnight = i === MIDNIGHT_IDX;
-
-    let cls = 'time-label';
-    if (m === 0) cls += ' hour-mark';
-    if (isMidnight) cls += ' midnight';
-    if (isNextDay)  cls += ' next-day';
-
-    const lbl = el('div', cls);
-    lbl.textContent = fmt12(hNorm, m);
-    if (isNextDay) {
-      const badge = el('span', 'next-day-badge');
-      badge.textContent = '+1d';
-      lbl.appendChild(badge);
-    }
-    timeCol.appendChild(lbl);
-  }
-  grid.appendChild(timeCol);
 
   // ── My-timezone column
   grid.appendChild(buildColumn(myTz, 'My Timezone', true, nowFrac, -1));
