@@ -572,8 +572,8 @@
   <select id="myTzSel" style="min-width:190px"></select>
   <div class="divider"></div>
   <label for="personSel">Highlight</label>
-  <select id="personSel" style="min-width:160px">
-    <option value="">— load a CSV —</option>
+  <select id="personSel" multiple size="1" style="min-width:160px;max-height:80px">
+    <option disabled>— load a CSV —</option>
   </select>
   <input type="file" id="csvInput" accept=".csv" style="display:none" />
   <button class="btn" id="loadCsvBtn" title="CSV format: name,timezone">↑ Load CSV</button>
@@ -806,8 +806,8 @@ let   dragging    = false;
 let   dragSelect  = true;
 let   dragTouched = new Set();
 
-let   csvPeople      = [];            // people loaded from CSV
-let   highlightPerson = null;         // { name, tz } | null
+let   csvPeople       = [];            // people loaded from CSV
+let   highlightPeople = [];           // [{ name, tz }, …] currently selected
 
 /* ── Time helpers ────────────────────────────────────────────────────────── */
 
@@ -944,7 +944,7 @@ function render() {
 function buildColumn(tz, label, isMine, nowFrac, teamIdx) {
   const slotH = 38; // must match --slot-h
 
-  const isHighlighted = !isMine && highlightPerson && highlightPerson.tz === tz && highlightPerson.name === label;
+  const isHighlighted = !isMine && highlightPeople.some(p => p.tz === tz && p.name === label);
   let colCls = 'tz-col';
   if (isMine)         colCls += ' mine';
   if (isHighlighted)  colCls += ' highlighted-col';
@@ -1031,7 +1031,7 @@ function buildColumn(tz, label, isMine, nowFrac, teamIdx) {
     });
 
     const isSelected = selected.has(i);
-    const isWork     = highlightPerson ? isWorkHour(ts, highlightPerson.tz) : false;
+    const isWork     = highlightPeople.length > 0 && highlightPeople.some(p => isWorkHour(ts, p.tz));
 
     if (isMine) {
       if (isSelected) slotEl.classList.add('on');
@@ -1123,19 +1123,27 @@ function parseCSV(text) {
     .filter(p => p.name && p.tz && p.name.toLowerCase() !== 'name');
 }
 
-function loadCSVPeople(text) {
-  const people = parseCSV(text);
-  if (!people.length) return;
-  csvPeople = people;
-
+function rebuildPersonSel() {
   const sel = document.getElementById('personSel');
-  sel.innerHTML = '<option value="">— none —</option>';
+  // Preserve current selections by name+tz
+  const kept = new Set(highlightPeople.map(p => `${p.name}|${p.tz}`));
+  sel.innerHTML = '';
   csvPeople.forEach((p, i) => {
     const cityLabel = p.tz.split('/').pop().replace(/_/g, ' ');
-    sel.appendChild(new Option(`${p.name}  (${cityLabel})`, i));
+    const opt = new Option(`${p.name}  (${cityLabel})`, i);
+    opt.selected = kept.has(`${p.name}|${p.tz}`);
+    sel.appendChild(opt);
   });
+  sel.size = Math.min(csvPeople.length, 5);
+}
 
-  highlightPerson = null;
+function loadCSVPeople(text) {
+  const incoming = parseCSV(text);
+  if (!incoming.length) return;
+  // Append, skipping exact duplicates
+  const existing = new Set(csvPeople.map(p => `${p.name}|${p.tz}`));
+  incoming.forEach(p => { if (!existing.has(`${p.name}|${p.tz}`)) csvPeople.push(p); });
+  rebuildPersonSel();
   render();
 }
 
@@ -1178,14 +1186,12 @@ document.addEventListener('drop', e => {
 
 // Person highlight dropdown
 document.getElementById('personSel').addEventListener('change', e => {
-  if (e.target.value === '') {
-    highlightPerson = null;
-  } else {
-    highlightPerson = csvPeople[+e.target.value];
-    // Add a column for this person if one doesn't exist yet
-    const exists = teamCols.some(c => c.tz === highlightPerson.tz && c.label === highlightPerson.name);
-    if (!exists) teamCols.push({ label: highlightPerson.name, tz: highlightPerson.tz });
-  }
+  highlightPeople = [...e.target.selectedOptions].map(opt => csvPeople[+opt.value]);
+  // Add a column for each newly highlighted person if not already present
+  highlightPeople.forEach(p => {
+    if (!teamCols.some(c => c.tz === p.tz && c.label === p.name))
+      teamCols.push({ label: p.name, tz: p.tz });
+  });
   render();
 });
 
@@ -1237,6 +1243,10 @@ document.getElementById('tabGuide').addEventListener('click', () => switchHelpTa
 document.getElementById('tabCsv').addEventListener('click',   () => switchHelpTab('csv'));
 
 document.getElementById('createCsvBtn').addEventListener('click', () => {
+  // Pre-fill builder with any already-loaded people
+  if (csvPeople.length && csvBuilderRows.length === 0)
+    csvBuilderRows = csvPeople.map(p => ({ ...p }));
+  renderCsvBuilder();
   document.getElementById('helpOverlay').classList.remove('hidden');
   switchHelpTab('csv');
 });
@@ -1317,6 +1327,9 @@ document.getElementById('csvDownloadBtn').addEventListener('click', () => {
 });
 
 document.getElementById('csvLoadBtn').addEventListener('click', () => {
+  // Replace csvPeople wholesale with the builder's current list
+  csvPeople = [];
+  highlightPeople = [];
   const lines = ['name,timezone', ...csvBuilderRows.map(r => `${r.name},${r.tz}`)];
   loadCSVPeople(lines.join('\n'));
   document.getElementById('helpOverlay').classList.add('hidden');
@@ -1351,7 +1364,7 @@ function saveState() {
       teamCols,
       selected:        [...selected],
       csvPeople,
-      highlightIndex:  highlightPerson ? csvPeople.indexOf(highlightPerson) : -1,
+      highlightIndices: highlightPeople.map(p => csvPeople.indexOf(p)).filter(i => i >= 0),
     }));
   } catch (_) {}
 }
@@ -1366,17 +1379,11 @@ function loadState() {
     if (s.selected)  s.selected.forEach(i => selected.add(i));
     if (s.csvPeople?.length) {
       csvPeople = s.csvPeople;
-      // Rebuild the person dropdown
-      const sel = document.getElementById('personSel');
-      sel.innerHTML = '<option value="">— none —</option>';
-      csvPeople.forEach((p, i) => {
-        const cityLabel = p.tz.split('/').pop().replace(/_/g, ' ');
-        sel.appendChild(new Option(`${p.name}  (${cityLabel})`, i));
-      });
-      if (s.highlightIndex >= 0 && s.highlightIndex < csvPeople.length) {
-        highlightPerson = csvPeople[s.highlightIndex];
-        sel.value = String(s.highlightIndex);
-      }
+      if (s.highlightIndices?.length)
+        highlightPeople = s.highlightIndices
+          .filter(i => i >= 0 && i < csvPeople.length)
+          .map(i => csvPeople[i]);
+      rebuildPersonSel();
     }
   } catch (_) {}
 }
