@@ -326,9 +326,52 @@
     .field select, .field input { width: 100%; }
 
     .modal-btns { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px; }
+
+    /* ── CSV drop overlay ────────────────────────────────────── */
+    .drop-overlay {
+      position: fixed; inset: 0;
+      background: rgba(99,102,241,0.12);
+      border: 3px dashed var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity .15s;
+    }
+    .drop-overlay.active { opacity: 1; }
+    .drop-overlay span {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: #818cf8;
+      background: var(--bg);
+      padding: 14px 28px;
+      border-radius: 10px;
+      border: 1px solid var(--primary);
+    }
+
+    /* ── Person working-hours highlight ─────────────────────── */
+    /* Light teal band: within person's 9am–6pm window */
+    .slot.work-band {
+      background: rgba(20, 184, 166, 0.09);
+    }
+    /* Overlap: your selected slot AND within person's working hours */
+    .slot.overlap {
+      background: rgba(20, 184, 166, 0.28);
+      color: #5eead4;
+    }
+    /* In "my" column: keep blue-on-selected but add teal tint for overlap */
+    .mine .slot.on.overlap {
+      background: color-mix(in srgb, #0d9488 45%, var(--primary));
+      color: #fff;
+    }
   </style>
 </head>
 <body>
+
+<!-- ── Drop overlay ──────────────────────────────────────────────────────── -->
+<div class="drop-overlay" id="dropOverlay"><span>Drop CSV to load team</span></div>
 
 <!-- ── Top bar ──────────────────────────────────────────────────────────── -->
 <div class="topbar">
@@ -337,10 +380,18 @@
   <label for="myTzSel">Your timezone</label>
   <select id="myTzSel" style="min-width:190px"></select>
   <div class="divider"></div>
+  <label for="personSel">Highlight</label>
+  <select id="personSel" style="min-width:160px">
+    <option value="">— load a CSV —</option>
+  </select>
+  <input type="file" id="csvInput" accept=".csv" style="display:none" />
+  <button class="btn" id="loadCsvBtn" title="CSV format: name,timezone">↑ Load CSV</button>
+  <div class="divider"></div>
   <div class="legend">
     <div class="leg"><div class="leg-dot" style="background:rgba(99,102,241,0.5)"></div>9am–6pm</div>
     <div class="leg"><div class="leg-dot" style="background:rgba(234,140,45,0.55)"></div>6pm–10pm</div>
-    <div class="leg"><div class="leg-dot" style="background:#1c2038"></div>Outside hrs</div>
+    <div class="leg"><div class="leg-dot" style="background:rgba(20,184,166,0.25)"></div>Work hrs</div>
+    <div class="leg"><div class="leg-dot" style="background:rgba(20,184,166,0.7)"></div>Overlap</div>
   </div>
   <span class="sel-count" id="selCount">0 selected</span>
   <button class="btn ml-auto" id="clearBtn">Clear</button>
@@ -433,9 +484,12 @@ let teamCols = [
 const selected  = new Set();          // slot indices currently selected
 let   slotUTCs  = [];                 // UTC timestamps for each slot
 
-let   dragging   = false;
-let   dragSelect = true;
+let   dragging    = false;
+let   dragSelect  = true;
 let   dragTouched = new Set();
+
+let   csvPeople      = [];            // people loaded from CSV
+let   highlightPerson = null;         // { name, tz } | null
 
 /* ── Time helpers ────────────────────────────────────────────────────────── */
 
@@ -497,6 +551,11 @@ function dayOffset(ts, tz) {
   const d1 = new Intl.DateTimeFormat('en-CA', { timeZone: tz   }).format(new Date(ts));
   if (d0 === d1) return 0;
   return d1 > d0 ? 1 : -1;
+}
+
+function isWorkHour(ts, tz) {
+  const h = localHour(ts, tz);
+  return h >= 9 && h < 18;
 }
 
 function utcOffsetLabel(tz) {
@@ -643,16 +702,24 @@ function buildColumn(tz, label, isMine, nowFrac, teamIdx) {
       }
     });
 
-    if (selected.has(i)) {
-      if (isMine) {
-        // Your column: bold blue selection
-        slotEl.classList.add('on');
-      } else {
-        // Other columns: shadow colour-coded by local hour
-        const h = localHour(ts, tz);
-        if (h >= 9 && h < 18)       slotEl.classList.add('sh-work');
-        else if (h >= 18 && h < 22) slotEl.classList.add('sh-eve');
-        else                         slotEl.classList.add('sh-night');
+    const isSelected = selected.has(i);
+    const isWork     = highlightPerson ? isWorkHour(ts, highlightPerson.tz) : false;
+
+    if (isMine) {
+      if (isSelected) slotEl.classList.add('on');
+      if (isWork)     slotEl.classList.add(isSelected ? 'overlap' : 'work-band');
+    } else {
+      if (isSelected) {
+        if (isWork) {
+          slotEl.classList.add('overlap');
+        } else {
+          const h = localHour(ts, tz);
+          if (h >= 9 && h < 18)       slotEl.classList.add('sh-work');
+          else if (h >= 18 && h < 22) slotEl.classList.add('sh-eve');
+          else                         slotEl.classList.add('sh-night');
+        }
+      } else if (isWork) {
+        slotEl.classList.add('work-band');
       }
     }
 
@@ -667,6 +734,78 @@ function applySlot(i, on) {
   else    selected.delete(i);
   render();
 }
+
+/* ── CSV helpers ─────────────────────────────────────────────────────────── */
+
+function parseCSV(text) {
+  return text.trim().split('\n')
+    .map(line => {
+      // Support quoted fields and trim whitespace
+      const parts = line.split(',').map(s => s.trim().replace(/^["']|["']$/g, ''));
+      return { name: parts[0], tz: parts[1] };
+    })
+    // Skip header row (if present) and invalid entries
+    .filter(p => p.name && p.tz && p.name.toLowerCase() !== 'name');
+}
+
+function loadCSVPeople(text) {
+  const people = parseCSV(text);
+  if (!people.length) return;
+  csvPeople = people;
+
+  const sel = document.getElementById('personSel');
+  sel.innerHTML = '<option value="">— none —</option>';
+  csvPeople.forEach((p, i) => {
+    const cityLabel = p.tz.split('/').pop().replace(/_/g, ' ');
+    sel.appendChild(new Option(`${p.name}  (${cityLabel})`, i));
+  });
+
+  highlightPerson = null;
+  render();
+}
+
+// File-picker button
+document.getElementById('loadCsvBtn').addEventListener('click', () => {
+  document.getElementById('csvInput').click();
+});
+document.getElementById('csvInput').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => loadCSVPeople(ev.target.result);
+  reader.readAsText(file);
+  e.target.value = '';
+});
+
+// Drag-and-drop anywhere on the window
+const dropOverlay = document.getElementById('dropOverlay');
+let dragCounter = 0;
+document.addEventListener('dragenter', e => {
+  if ([...e.dataTransfer.types].includes('Files')) {
+    dragCounter++;
+    dropOverlay.classList.add('active');
+  }
+});
+document.addEventListener('dragleave', () => {
+  if (--dragCounter <= 0) { dragCounter = 0; dropOverlay.classList.remove('active'); }
+});
+document.addEventListener('dragover', e => e.preventDefault());
+document.addEventListener('drop', e => {
+  e.preventDefault();
+  dragCounter = 0;
+  dropOverlay.classList.remove('active');
+  const file = e.dataTransfer.files[0];
+  if (!file || !file.name.toLowerCase().endsWith('.csv')) return;
+  const reader = new FileReader();
+  reader.onload = ev => loadCSVPeople(ev.target.result);
+  reader.readAsText(file);
+});
+
+// Person highlight dropdown
+document.getElementById('personSel').addEventListener('change', e => {
+  highlightPerson = e.target.value !== '' ? csvPeople[+e.target.value] : null;
+  render();
+});
 
 /* ── Controls ────────────────────────────────────────────────────────────── */
 
