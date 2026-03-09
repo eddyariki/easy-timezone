@@ -488,6 +488,46 @@
     }
     .csv-builder-row .row-del:hover { opacity: 1; color: #ef4444; }
 
+    /* ── Person checkbox dropdown ────────────────────────────── */
+    .person-dropdown { position: relative; flex-shrink: 0; }
+    .person-dropdown-panel {
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 6px;
+      min-width: 210px;
+      max-height: 260px;
+      overflow-y: auto;
+      z-index: 80;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      box-shadow: 0 8px 24px rgba(0,0,0,.4);
+    }
+    .person-dropdown-panel.hidden { display: none; }
+    .person-check-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 8px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      color: var(--text);
+      user-select: none;
+    }
+    .person-check-item:hover { background: var(--surface2); }
+    .person-check-item input[type="checkbox"] {
+      cursor: pointer;
+      accent-color: var(--primary);
+      width: 14px; height: 14px;
+      flex-shrink: 0;
+    }
+    .person-empty-msg { font-size: 0.75rem; color: var(--muted); padding: 6px 8px; }
+
     .btn-help {
       width: 28px; height: 28px;
       border-radius: 50%;
@@ -571,10 +611,12 @@
   <label for="myTzSel">Your timezone</label>
   <select id="myTzSel" style="min-width:190px"></select>
   <div class="divider"></div>
-  <label for="personSel">Highlight</label>
-  <select id="personSel" multiple size="1" style="min-width:160px;max-height:80px">
-    <option disabled>— load a CSV —</option>
-  </select>
+  <div class="person-dropdown" id="personDropdown">
+    <button class="btn" id="personDropdownBtn">Highlight</button>
+    <div class="person-dropdown-panel hidden" id="personDropdownPanel">
+      <span class="person-empty-msg">Load a CSV first</span>
+    </div>
+  </div>
   <input type="file" id="csvInput" accept=".csv" style="display:none" />
   <button class="btn" id="loadCsvBtn" title="CSV format: name,timezone">↑ Load CSV</button>
   <button class="btn" id="createCsvBtn">+ Create CSV</button>
@@ -697,11 +739,6 @@
         <div class="help-section" id="csvBuilderListSection" style="display:none;margin-top:16px">
           <h3>People <span id="csvBuilderCount" style="color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0"></span></h3>
           <div id="csvBuilderList" style="display:flex;flex-direction:column;gap:5px"></div>
-        </div>
-
-        <div class="help-section" id="csvPreviewSection" style="display:none">
-          <h3>Preview</h3>
-          <div class="csv-block" id="csvPreview"></div>
         </div>
 
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:16px" id="csvBuilderActions" style="display:none">
@@ -1124,18 +1161,66 @@ function parseCSV(text) {
 }
 
 function rebuildPersonSel() {
-  const sel = document.getElementById('personSel');
-  // Preserve current selections by name+tz
-  const kept = new Set(highlightPeople.map(p => `${p.name}|${p.tz}`));
-  sel.innerHTML = '';
+  const panel = document.getElementById('personDropdownPanel');
+  const kept  = new Set(highlightPeople.map(p => `${p.name}|${p.tz}`));
+  panel.innerHTML = '';
+
+  if (!csvPeople.length) {
+    const msg = document.createElement('span');
+    msg.className = 'person-empty-msg';
+    msg.textContent = 'Load a CSV first';
+    panel.appendChild(msg);
+    updateHighlightBtn();
+    return;
+  }
+
   csvPeople.forEach((p, i) => {
     const cityLabel = p.tz.split('/').pop().replace(/_/g, ' ');
-    const opt = new Option(`${p.name}  (${cityLabel})`, i);
-    opt.selected = kept.has(`${p.name}|${p.tz}`);
-    sel.appendChild(opt);
+    const label = document.createElement('label');
+    label.className = 'person-check-item';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.value = i;
+    cb.checked = kept.has(`${p.name}|${p.tz}`);
+    cb.addEventListener('change', onPersonCheck);
+    label.appendChild(cb);
+    label.appendChild(document.createTextNode(`${p.name}  (${cityLabel})`));
+    panel.appendChild(label);
   });
-  sel.size = Math.min(csvPeople.length, 5);
+
+  updateHighlightBtn();
 }
+
+function updateHighlightBtn() {
+  const n   = highlightPeople.length;
+  const btn = document.getElementById('personDropdownBtn');
+  btn.textContent = n > 0 ? `Highlight (${n})` : 'Highlight';
+  btn.style.borderColor = n > 0 ? '#0d9488' : '';
+  btn.style.color       = n > 0 ? '#5eead4' : '';
+}
+
+function onPersonCheck(e) {
+  const p = csvPeople[+e.target.value];
+  if (e.target.checked) {
+    if (!highlightPeople.includes(p)) highlightPeople.push(p);
+    if (!teamCols.some(c => c.tz === p.tz && c.label === p.name))
+      teamCols.push({ label: p.name, tz: p.tz });
+  } else {
+    highlightPeople = highlightPeople.filter(h => h !== p);
+  }
+  updateHighlightBtn();
+  render();
+}
+
+// Dropdown toggle + close-on-outside-click
+document.getElementById('personDropdownBtn').addEventListener('click', e => {
+  e.stopPropagation();
+  document.getElementById('personDropdownPanel').classList.toggle('hidden');
+});
+document.addEventListener('click', () => {
+  document.getElementById('personDropdownPanel').classList.add('hidden');
+});
+document.getElementById('personDropdownPanel').addEventListener('click', e => e.stopPropagation());
 
 function loadCSVPeople(text) {
   const incoming = parseCSV(text);
@@ -1185,15 +1270,6 @@ document.addEventListener('drop', e => {
 });
 
 // Person highlight dropdown
-document.getElementById('personSel').addEventListener('change', e => {
-  highlightPeople = [...e.target.selectedOptions].map(opt => csvPeople[+opt.value]);
-  // Add a column for each newly highlighted person if not already present
-  highlightPeople.forEach(p => {
-    if (!teamCols.some(c => c.tz === p.tz && c.label === p.name))
-      teamCols.push({ label: p.name, tz: p.tz });
-  });
-  render();
-});
 
 /* ── Controls ────────────────────────────────────────────────────────────── */
 
@@ -1273,15 +1349,12 @@ let csvBuilderRows = [];
 
 function renderCsvBuilder() {
   const list    = document.getElementById('csvBuilderList');
-  const preview = document.getElementById('csvPreview');
   const listSec = document.getElementById('csvBuilderListSection');
-  const prevSec = document.getElementById('csvPreviewSection');
   const actions = document.getElementById('csvBuilderActions');
   const count   = document.getElementById('csvBuilderCount');
 
   const hasRows = csvBuilderRows.length > 0;
   listSec.style.display = hasRows ? '' : 'none';
-  prevSec.style.display = hasRows ? '' : 'none';
   actions.style.display = hasRows ? 'flex' : 'none';
   count.textContent = `(${csvBuilderRows.length})`;
 
@@ -1301,8 +1374,6 @@ function renderCsvBuilder() {
     });
   });
 
-  const lines = ['name,timezone', ...csvBuilderRows.map(r => `${r.name},${r.tz}`)];
-  preview.textContent = lines.join('\n');
 }
 
 document.getElementById('csvBuilderAdd').addEventListener('click', () => {
