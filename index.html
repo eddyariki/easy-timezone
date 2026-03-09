@@ -255,8 +255,10 @@
     }
     .time-label.next-day { color: #3d4468; }
 
-    /* mine — interactive */
-    .mine .slot { cursor: pointer; }
+    /* all slots interactive */
+    .slot { cursor: pointer; }
+    .slot:hover { background: var(--surface2); color: var(--text); }
+    /* mine gets extra hover treatment */
     .mine .slot:hover { background: var(--surface2); color: var(--text); }
     .mine .slot.on {
       background: var(--primary);
@@ -694,30 +696,32 @@ function buildColumn(tz, label, isMine, nowFrac, teamIdx) {
       }
     }
 
-    // My-TZ: interactive
-    if (isMine) {
-      if (selected.has(i)) slotEl.classList.add('on');
-
-      slotEl.addEventListener('mousedown', e => {
-        e.preventDefault();
-        dragging    = true;
-        dragSelect  = !selected.has(i);
-        dragTouched = new Set([i]);
+    // All columns are interactive — clicking any slot selects the same UTC moment
+    slotEl.addEventListener('mousedown', e => {
+      e.preventDefault();
+      dragging    = true;
+      dragSelect  = !selected.has(i);
+      dragTouched = new Set([i]);
+      applySlot(i, dragSelect);
+    });
+    slotEl.addEventListener('mouseover', () => {
+      if (dragging && !dragTouched.has(i)) {
+        dragTouched.add(i);
         applySlot(i, dragSelect);
-      });
-      slotEl.addEventListener('mouseover', () => {
-        if (dragging && !dragTouched.has(i)) {
-          dragTouched.add(i);
-          applySlot(i, dragSelect);
-        }
-      });
+      }
+    });
 
-    // Other columns: shadow
-    } else if (selected.has(i)) {
-      const h = localHour(ts, tz);
-      if (h >= 9 && h < 18)       slotEl.classList.add('sh-work');
-      else if (h >= 18 && h < 22) slotEl.classList.add('sh-eve');
-      else                         slotEl.classList.add('sh-night');
+    if (selected.has(i)) {
+      if (isMine) {
+        // Your column: bold blue selection
+        slotEl.classList.add('on');
+      } else {
+        // Other columns: shadow colour-coded by local hour
+        const h = localHour(ts, tz);
+        if (h >= 9 && h < 18)       slotEl.classList.add('sh-work');
+        else if (h >= 18 && h < 22) slotEl.classList.add('sh-eve');
+        else                         slotEl.classList.add('sh-night');
+      }
     }
 
     col.appendChild(slotEl);
