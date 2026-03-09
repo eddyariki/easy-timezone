@@ -577,6 +577,7 @@
   </select>
   <input type="file" id="csvInput" accept=".csv" style="display:none" />
   <button class="btn" id="loadCsvBtn" title="CSV format: name,timezone">↑ Load CSV</button>
+  <button class="btn" id="createCsvBtn">+ Create CSV</button>
   <div class="divider"></div>
   <div class="legend">
     <div class="leg"><div class="leg-dot" style="background:rgba(99,102,241,0.5)"></div>9am–6pm</div>
@@ -1234,6 +1235,11 @@ document.getElementById('helpOverlay').addEventListener('click', e => {
 // Tab switching
 document.getElementById('tabGuide').addEventListener('click', () => switchHelpTab('guide'));
 document.getElementById('tabCsv').addEventListener('click',   () => switchHelpTab('csv'));
+
+document.getElementById('createCsvBtn').addEventListener('click', () => {
+  document.getElementById('helpOverlay').classList.remove('hidden');
+  switchHelpTab('csv');
+});
 
 function switchHelpTab(tab) {
   document.getElementById('tabGuideContent').style.display = tab === 'guide' ? '' : 'none';
