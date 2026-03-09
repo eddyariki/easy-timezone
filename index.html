@@ -1068,7 +1068,7 @@ function buildColumn(tz, label, isMine, nowFrac, teamIdx) {
     });
 
     const isSelected = selected.has(i);
-    const isWork     = highlightPeople.length > 0 && highlightPeople.some(p => isWorkHour(ts, p.tz));
+    const isWork     = highlightPeople.length > 0 && highlightPeople.every(p => isWorkHour(ts, p.tz));
 
     if (isMine) {
       if (isSelected) slotEl.classList.add('on');
