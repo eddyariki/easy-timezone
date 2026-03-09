@@ -854,6 +854,51 @@ document.getElementById('confirmBtn').addEventListener('click', () => {
   render();
 });
 
+/* ── Persistence ─────────────────────────────────────────────────────────── */
+
+const LS_KEY = 'timekeeper_v1';
+
+function saveState() {
+  try {
+    localStorage.setItem(LS_KEY, JSON.stringify({
+      myTz,
+      teamCols,
+      selected:        [...selected],
+      csvPeople,
+      highlightIndex:  highlightPerson ? csvPeople.indexOf(highlightPerson) : -1,
+    }));
+  } catch (_) {}
+}
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (!raw) return;
+    const s = JSON.parse(raw);
+    if (s.myTz)      myTz      = s.myTz;
+    if (s.teamCols)  teamCols  = s.teamCols;
+    if (s.selected)  s.selected.forEach(i => selected.add(i));
+    if (s.csvPeople?.length) {
+      csvPeople = s.csvPeople;
+      // Rebuild the person dropdown
+      const sel = document.getElementById('personSel');
+      sel.innerHTML = '<option value="">— none —</option>';
+      csvPeople.forEach((p, i) => {
+        const cityLabel = p.tz.split('/').pop().replace(/_/g, ' ');
+        sel.appendChild(new Option(`${p.name}  (${cityLabel})`, i));
+      });
+      if (s.highlightIndex >= 0 && s.highlightIndex < csvPeople.length) {
+        highlightPerson = csvPeople[s.highlightIndex];
+        sel.value = String(s.highlightIndex);
+      }
+    }
+  } catch (_) {}
+}
+
+// Wrap render so every repaint also persists state
+const _render = render;
+render = function () { _render(); saveState(); };
+
 /* ── Init ────────────────────────────────────────────────────────────────── */
 
 function populateSelects() {
@@ -870,6 +915,7 @@ function dedupeTeam() {
   teamCols = teamCols.filter(c => c.tz !== myTz);
 }
 
+loadState();          // restore before populating selects so myTz is correct
 populateSelects();
 dedupeTeam();
 render();
