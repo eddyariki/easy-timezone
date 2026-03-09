@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Time Keeper — Global Team Scheduler</title>
+  <style>
+    :root {
+      --bg:          #0d0f1a;
+      --surface:     #13162b;
+      --surface2:    #1c2038;
+      --border:      #252945;
+      --text:        #dde3f0;
+      --muted:       #4a5278;
+      --primary:     #6366f1;
+      --primary-dim: rgba(99,102,241,0.18);
+      --primary-lo:  rgba(99,102,241,0.07);
+      --slot-h:      38px;
+      --col-w:       152px;
+      --label-w:     68px;
+      --head-h:      64px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── Top bar ─────────────────────────────────────────────── */
+    .topbar {
+      flex-shrink: 0;
+      height: 52px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 18px;
+      gap: 14px;
+      z-index: 60;
+    }
+
+    .brand {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #818cf8;
+      letter-spacing: -0.02em;
+      white-space: nowrap;
+    }
+
+    .divider { width: 1px; height: 18px; background: var(--border); flex-shrink: 0; }
+
+    .topbar label { font-size: 0.75rem; color: var(--muted); white-space: nowrap; }
+
+    select, input[type="text"] {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 5px 8px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-family: inherit;
+      cursor: pointer;
+    }
+    select:focus, input:focus { outline: 1px solid var(--primary); border-color: var(--primary); }
+
+    .btn {
+      padding: 5px 12px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: none;
+      color: var(--muted);
+      font-size: 0.75rem;
+      cursor: pointer;
+      font-family: inherit;
+      white-space: nowrap;
+      transition: border-color .12s, color .12s;
+    }
+    .btn:hover { border-color: #6366f1; color: var(--text); }
+    .btn-primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+    .btn-primary:hover { background: #818cf8; border-color: #818cf8; color: #fff; }
+
+    .ml-auto { margin-left: auto; }
+
+    .legend {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-left: auto;
+    }
+    .leg {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 0.68rem;
+      color: var(--muted);
+    }
+    .leg-dot { width: 9px; height: 9px; border-radius: 2px; }
+
+    .sel-count {
+      font-size: 0.72rem;
+      color: #818cf8;
+      background: var(--primary-dim);
+      border-radius: 4px;
+      padding: 3px 8px;
+      min-width: 2ch;
+      text-align: center;
+    }
+
+    /* ── Grid area ───────────────────────────────────────────── */
+    .grid-outer {
+      flex: 1;
+      overflow: auto;
+      padding: 20px 20px 40px;
+    }
+
+    .grid {
+      display: flex;
+      min-width: max-content;
+    }
+
+    /* ── Time labels ─────────────────────────────────────────── */
+    .time-col {
+      width: var(--label-w);
+      flex-shrink: 0;
+      padding-top: var(--head-h);
+      position: sticky;
+      left: 0;
+      z-index: 20;
+      background: var(--bg);
+    }
+
+    .time-label {
+      height: var(--slot-h);
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding-right: 10px;
+      font-size: 0.66rem;
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+    }
+    .time-label.hour-mark {
+      font-weight: 600;
+      color: #5a607a;
+    }
+
+    /* ── Timezone column ─────────────────────────────────────── */
+    .tz-col {
+      width: var(--col-w);
+      flex-shrink: 0;
+      border-left: 1px solid var(--border);
+    }
+
+    .tz-col.mine {
+      border-left: 2px solid var(--primary);
+    }
+
+    .col-head {
+      height: var(--head-h);
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 3px;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: var(--surface);
+    }
+
+    .mine .col-head {
+      background: color-mix(in srgb, var(--primary) 12%, var(--surface));
+    }
+
+    .col-name {
+      font-size: 0.82rem;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .you-badge {
+      font-size: 0.57rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      background: var(--primary);
+      color: #fff;
+      border-radius: 3px;
+      padding: 1px 5px;
+    }
+
+    .col-offset {
+      font-size: 0.67rem;
+      color: var(--muted);
+    }
+
+    .col-remove {
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 0.67rem;
+      cursor: pointer;
+      padding: 0;
+      margin-top: 2px;
+      opacity: 0.45;
+      text-align: left;
+    }
+    .col-remove:hover { opacity: 1; color: #ef4444; }
+
+    /* ── Slot cells ──────────────────────────────────────────── */
+    .slot {
+      height: var(--slot-h);
+      border-bottom: 1px solid var(--border);
+      padding: 0 12px;
+      display: flex;
+      align-items: center;
+      font-size: 0.74rem;
+      font-variant-numeric: tabular-nums;
+      color: var(--muted);
+      user-select: none;
+      position: relative;
+      transition: background .07s;
+    }
+
+    .slot.hour-start { border-top: 1px solid var(--border); }
+
+    /* ── Midnight / day-change divider ──────────────────────── */
+    .slot.midnight,
+    .time-label.midnight {
+      border-top: 2px solid #3a4068;
+    }
+    .next-day-badge {
+      font-size: 0.56rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      color: #4a5278;
+      background: #1a1d30;
+      border: 1px solid #2e3456;
+      border-radius: 3px;
+      padding: 1px 4px;
+      margin-left: 5px;
+      flex-shrink: 0;
+    }
+    .time-label.next-day { color: #3d4468; }
+
+    /* mine — interactive */
+    .mine .slot { cursor: pointer; }
+    .mine .slot:hover { background: var(--surface2); color: var(--text); }
+    .mine .slot.on {
+      background: var(--primary);
+      color: #fff;
+      font-weight: 600;
+      border-bottom-color: rgba(255,255,255,0.12);
+    }
+    .mine .slot.on:hover { background: #7577f3; }
+
+    /* shadow — other columns */
+    .slot.sh-work {
+      background: var(--primary-dim);
+      color: var(--text);
+    }
+    .slot.sh-eve {
+      background: rgba(234, 140, 45, 0.13);
+      color: #f4a94a;
+    }
+    .slot.sh-night {
+      background: var(--primary-lo);
+      color: #2e3456;
+    }
+
+    .day-tag {
+      font-size: 0.58rem;
+      margin-left: 5px;
+      opacity: 0.65;
+      font-weight: 500;
+    }
+
+    /* now line */
+    .now-line {
+      position: absolute;
+      left: 0; right: 0;
+      height: 2px;
+      background: #f43f5e;
+      pointer-events: none;
+      z-index: 5;
+    }
+    .now-line::before {
+      content: 'NOW';
+      position: absolute;
+      right: 5px;
+      top: -8px;
+      font-size: 0.52rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      color: #f43f5e;
+    }
+
+    /* ── Add column button ───────────────────────────────────── */
+    .add-col-wrap {
+      width: 54px;
+      flex-shrink: 0;
+      border-left: 1px dashed var(--border);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding-top: 14px;
+    }
+
+    .add-col-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: 1px dashed var(--border);
+      background: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 1.2rem;
+      line-height: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all .14s;
+    }
+    .add-col-btn:hover {
+      border-color: var(--primary);
+      color: #818cf8;
+      background: var(--primary-dim);
+    }
+
+    /* ── Modal ───────────────────────────────────────────────── */
+    .overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.65);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+    .overlay.hidden { display: none; }
+
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      width: 320px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .modal h3 { font-size: 0.95rem; font-weight: 600; }
+
+    .field { display: flex; flex-direction: column; gap: 4px; }
+    .field label { font-size: 0.73rem; color: var(--muted); }
+    .field select, .field input { width: 100%; }
+
+    .modal-btns { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px; }
+  </style>
+</head>
+<body>
+
+<!-- ── Top bar ──────────────────────────────────────────────────────────── -->
+<div class="topbar">
+  <div class="brand">⏱ Time Keeper</div>
+  <div class="divider"></div>
+  <label for="myTzSel">Your timezone</label>
+  <select id="myTzSel" style="min-width:190px"></select>
+  <div class="divider"></div>
+  <div class="legend">
+    <div class="leg"><div class="leg-dot" style="background:rgba(99,102,241,0.5)"></div>9am–6pm</div>
+    <div class="leg"><div class="leg-dot" style="background:rgba(234,140,45,0.55)"></div>6pm–10pm</div>
+    <div class="leg"><div class="leg-dot" style="background:#1c2038"></div>Outside hrs</div>
+  </div>
+  <span class="sel-count" id="selCount">0 selected</span>
+  <button class="btn ml-auto" id="clearBtn">Clear</button>
+</div>
+
+<!-- ── Grid ─────────────────────────────────────────────────────────────── -->
+<div class="grid-outer" id="gridOuter">
+  <div class="grid" id="grid"></div>
+</div>
+
+<!-- ── Add timezone modal ───────────────────────────────────────────────── -->
+<div class="overlay hidden" id="addOverlay">
+  <div class="modal">
+    <h3>Add Timezone Column</h3>
+    <div class="field">
+      <label>Label <span style="opacity:.5">(optional — person or city name)</span></label>
+      <input type="text" id="newLabel" placeholder="e.g. Alice, Team Tokyo…" />
+    </div>
+    <div class="field">
+      <label>Timezone</label>
+      <select id="newTzSel"></select>
+    </div>
+    <div class="modal-btns">
+      <button class="btn" id="cancelBtn">Cancel</button>
+      <button class="btn btn-primary" id="confirmBtn">Add Column</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+/* ── Config ──────────────────────────────────────────────────────────────── */
+
+const SLOT_START_MIN = 0;              // 00:00 today
+const SLOT_STEP      = 30;
+const SLOT_COUNT     = (2 * 24 * 60) / SLOT_STEP; // 96 — two full days
+const MIDNIGHT_IDX   = (24 * 60)     / SLOT_STEP; // 48 — slot index of day-2 midnight
+
+const TZ_LIST = [
+  { label: 'Los Angeles (PT)',      tz: 'America/Los_Angeles'  },
+  { label: 'Denver (MT)',           tz: 'America/Denver'       },
+  { label: 'Chicago (CT)',          tz: 'America/Chicago'      },
+  { label: 'New York (ET)',         tz: 'America/New_York'     },
+  { label: 'Toronto (ET)',          tz: 'America/Toronto'      },
+  { label: 'São Paulo (BRT)',       tz: 'America/Sao_Paulo'    },
+  { label: 'London (GMT/BST)',      tz: 'Europe/London'        },
+  { label: 'Lisbon (WET)',          tz: 'Europe/Lisbon'        },
+  { label: 'Amsterdam / Berlin',    tz: 'Europe/Amsterdam'     },
+  { label: 'Paris (CET)',           tz: 'Europe/Paris'         },
+  { label: 'Warsaw (CET)',          tz: 'Europe/Warsaw'        },
+  { label: 'Helsinki (EET)',        tz: 'Europe/Helsinki'      },
+  { label: 'Istanbul (TRT)',        tz: 'Europe/Istanbul'      },
+  { label: 'Moscow (MSK)',          tz: 'Europe/Moscow'        },
+  { label: 'Riyadh (AST)',          tz: 'Asia/Riyadh'          },
+  { label: 'Dubai (GST)',           tz: 'Asia/Dubai'           },
+  { label: 'Karachi (PKT)',         tz: 'Asia/Karachi'         },
+  { label: 'Mumbai / Delhi (IST)',  tz: 'Asia/Kolkata'         },
+  { label: 'Dhaka (BST)',           tz: 'Asia/Dhaka'           },
+  { label: 'Bangkok (ICT)',         tz: 'Asia/Bangkok'         },
+  { label: 'Singapore / KL',        tz: 'Asia/Singapore'       },
+  { label: 'Hong Kong (HKT)',       tz: 'Asia/Hong_Kong'       },
+  { label: 'Shanghai (CST)',        tz: 'Asia/Shanghai'        },
+  { label: 'Tokyo (JST)',           tz: 'Asia/Tokyo'           },
+  { label: 'Seoul (KST)',           tz: 'Asia/Seoul'           },
+  { label: 'Sydney (AEST/AEDT)',    tz: 'Australia/Sydney'     },
+  { label: 'Melbourne (AEST)',      tz: 'Australia/Melbourne'  },
+  { label: 'Auckland (NZST)',       tz: 'Pacific/Auckland'     },
+];
+
+/* ── State ───────────────────────────────────────────────────────────────── */
+
+let myTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+if (!TZ_LIST.find(t => t.tz === myTz)) {
+  // inject detected tz at top
+  const label = myTz.split('/').pop().replace(/_/g, ' ');
+  TZ_LIST.unshift({ label, tz: myTz });
+}
+
+let teamCols = [
+  { label: 'New York',   tz: 'America/New_York'   },
+  { label: 'London',     tz: 'Europe/London'      },
+  { label: 'Berlin',     tz: 'Europe/Amsterdam'   },
+  { label: 'Dubai',      tz: 'Asia/Dubai'         },
+  { label: 'Singapore',  tz: 'Asia/Singapore'     },
+  { label: 'Tokyo',      tz: 'Asia/Tokyo'         },
+  { label: 'Sydney',     tz: 'Australia/Sydney'   },
+];
+
+const selected  = new Set();          // slot indices currently selected
+let   slotUTCs  = [];                 // UTC timestamps for each slot
+
+let   dragging   = false;
+let   dragSelect = true;
+let   dragTouched = new Set();
+
+/* ── Time helpers ────────────────────────────────────────────────────────── */
+
+/**
+ * For the current day in `myTz`, find the UTC timestamp that corresponds
+ * to hour:minute in that timezone. Uses a few iterations to handle DST.
+ */
+function slotToUTC(slotIdx) {
+  const totalMin = SLOT_START_MIN + slotIdx * SLOT_STEP;
+  // Which day (0 = today, 1 = tomorrow) and normalized time within that day
+  const dayAdd = Math.floor(totalMin / (24 * 60));
+  const hNorm  = Math.floor((totalMin % (24 * 60)) / 60);
+  const m      = totalMin % 60;
+
+  // Calendar date for (today + dayAdd) in myTz
+  const baseMs = Date.now() + dayAdd * 86_400_000;
+  const dStr   = new Intl.DateTimeFormat('en-CA', { timeZone: myTz,
+    year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(baseMs));
+  const [yr, mo, dy] = dStr.split('-').map(Number);
+
+  // Initial UTC guess: treat local time as UTC then iterate to correct for offset
+  let t = Date.UTC(yr, mo - 1, dy, hNorm, m);
+
+  for (let iter = 0; iter < 4; iter++) {
+    const p = new Intl.DateTimeFormat('en-US', {
+      timeZone: myTz, hour: '2-digit', minute: '2-digit', hour12: false
+    }).formatToParts(new Date(t));
+    const lh   = +p.find(x => x.type === 'hour').value;
+    const lhN  = lh === 24 ? 0 : lh;
+    const lm   = +p.find(x => x.type === 'minute').value;
+    const diff = (hNorm * 60 + m) - (lhN * 60 + lm);
+    if (diff === 0) break;
+    if (Math.abs(diff) > 90) break; // DST is ≤ 1 h; large diff means wrong day — stop
+    t -= diff * 60_000;
+  }
+  return t;
+}
+
+function buildSlotUTCs() {
+  slotUTCs = Array.from({ length: SLOT_COUNT }, (_, i) => slotToUTC(i));
+}
+
+function fmtTime(ts, tz) {
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone: tz, hour: 'numeric', minute: '2-digit', hour12: true
+  }).format(new Date(ts));
+}
+
+function localHour(ts, tz) {
+  const p = new Intl.DateTimeFormat('en-US', {
+    timeZone: tz, hour: '2-digit', hour12: false
+  }).formatToParts(new Date(ts));
+  const h = +p.find(x => x.type === 'hour').value;
+  return h === 24 ? 0 : h;
+}
+
+function dayOffset(ts, tz) {
+  const d0 = new Intl.DateTimeFormat('en-CA', { timeZone: myTz }).format(new Date(ts));
+  const d1 = new Intl.DateTimeFormat('en-CA', { timeZone: tz   }).format(new Date(ts));
+  if (d0 === d1) return 0;
+  return d1 > d0 ? 1 : -1;
+}
+
+function utcOffsetLabel(tz) {
+  try {
+    const p = new Intl.DateTimeFormat('en', {
+      timeZone: tz, timeZoneName: 'shortOffset'
+    }).formatToParts(new Date());
+    return p.find(x => x.type === 'timeZoneName')?.value ?? '';
+  } catch { return ''; }
+}
+
+/** Format 24h integers as 12h string for row labels */
+function fmt12(h, m) {
+  const ap = h >= 12 ? 'PM' : 'AM';
+  const h12 = h > 12 ? h - 12 : h === 0 ? 12 : h;
+  return `${h12}:${String(m).padStart(2, '0')} ${ap}`;
+}
+
+/* ── DOM helpers ─────────────────────────────────────────────────────────── */
+
+function el(tag, cls) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  return e;
+}
+
+/* ── Render ──────────────────────────────────────────────────────────────── */
+
+function render() {
+  buildSlotUTCs();
+
+  // Where is "now" relative to the slots? (fractional slot index)
+  const now = Date.now();
+  let nowFrac = -1;
+  for (let i = 0; i < SLOT_COUNT - 1; i++) {
+    if (now >= slotUTCs[i] && now < slotUTCs[i + 1]) {
+      nowFrac = i + (now - slotUTCs[i]) / (slotUTCs[i + 1] - slotUTCs[i]);
+      break;
+    }
+  }
+
+  const grid = document.getElementById('grid');
+  grid.innerHTML = '';
+
+  // ── Time labels column
+  const timeCol = el('div', 'time-col');
+  for (let i = 0; i < SLOT_COUNT; i++) {
+    const totalMin = SLOT_START_MIN + i * SLOT_STEP;
+    const hNorm    = Math.floor((totalMin % (24 * 60)) / 60);
+    const m        = totalMin % 60;
+    const isNextDay  = i >= MIDNIGHT_IDX;
+    const isMidnight = i === MIDNIGHT_IDX;
+
+    let cls = 'time-label';
+    if (m === 0) cls += ' hour-mark';
+    if (isMidnight) cls += ' midnight';
+    if (isNextDay)  cls += ' next-day';
+
+    const lbl = el('div', cls);
+    lbl.textContent = fmt12(hNorm, m);
+    if (isNextDay) {
+      const badge = el('span', 'next-day-badge');
+      badge.textContent = '+1d';
+      lbl.appendChild(badge);
+    }
+    timeCol.appendChild(lbl);
+  }
+  grid.appendChild(timeCol);
+
+  // ── My-timezone column
+  grid.appendChild(buildColumn(myTz, 'My Timezone', true, nowFrac, -1));
+
+  // ── Team columns
+  teamCols.forEach((col, idx) =>
+    grid.appendChild(buildColumn(col.tz, col.label, false, nowFrac, idx))
+  );
+
+  // ── Add-column button
+  const addWrap = el('div', 'add-col-wrap');
+  const addBtn  = el('button', 'add-col-btn');
+  addBtn.textContent = '+';
+  addBtn.title = 'Add timezone column';
+  addBtn.addEventListener('click', openModal);
+  addWrap.appendChild(addBtn);
+  grid.appendChild(addWrap);
+
+  // ── Update selection counter
+  const n = selected.size;
+  document.getElementById('selCount').textContent =
+    n === 0 ? '0 selected' : `${n} slot${n > 1 ? 's' : ''} selected`;
+}
+
+function buildColumn(tz, label, isMine, nowFrac, teamIdx) {
+  const slotH = 38; // must match --slot-h
+
+  const col  = el('div', 'tz-col' + (isMine ? ' mine' : ''));
+
+  // Header
+  const head   = el('div', 'col-head');
+  const nameEl = el('div', 'col-name');
+  nameEl.appendChild(document.createTextNode(label));
+  if (isMine) {
+    const badge = el('span', 'you-badge');
+    badge.textContent = 'YOU';
+    nameEl.appendChild(badge);
+  }
+  const offEl = el('div', 'col-offset');
+  offEl.textContent = utcOffsetLabel(tz);
+  head.appendChild(nameEl);
+  head.appendChild(offEl);
+
+  if (!isMine) {
+    const rmBtn = el('button', 'col-remove');
+    rmBtn.textContent = '× remove';
+    rmBtn.addEventListener('click', () => {
+      teamCols.splice(teamIdx, 1);
+      render();
+    });
+    head.appendChild(rmBtn);
+  }
+  col.appendChild(head);
+
+  // Slot rows
+  for (let i = 0; i < SLOT_COUNT; i++) {
+    const ts       = slotUTCs[i];
+    const totalMin = SLOT_START_MIN + i * SLOT_STEP;
+    const isHourStart = (totalMin % (24 * 60)) % 60 === 0;
+
+    let slotCls = 'slot';
+    if (isHourStart)    slotCls += ' hour-start';
+    if (i === MIDNIGHT_IDX) slotCls += ' midnight';
+
+    const slotEl = el('div', slotCls);
+
+    // Now-line
+    if (nowFrac >= i && nowFrac < i + 1) {
+      const frac   = nowFrac - i;
+      const nowLine = el('div', 'now-line');
+      nowLine.style.top = Math.round(frac * slotH) + 'px';
+      slotEl.appendChild(nowLine);
+    }
+
+    // Time text
+    const timeText = document.createTextNode(fmtTime(ts, tz));
+    slotEl.appendChild(timeText);
+
+    // Day offset tag (other columns only)
+    if (!isMine) {
+      const off = dayOffset(ts, tz);
+      if (off !== 0) {
+        const tag = el('span', 'day-tag');
+        tag.textContent = off > 0 ? '+1d' : '-1d';
+        slotEl.appendChild(tag);
+      }
+    }
+
+    // My-TZ: interactive
+    if (isMine) {
+      if (selected.has(i)) slotEl.classList.add('on');
+
+      slotEl.addEventListener('mousedown', e => {
+        e.preventDefault();
+        dragging    = true;
+        dragSelect  = !selected.has(i);
+        dragTouched = new Set([i]);
+        applySlot(i, dragSelect);
+      });
+      slotEl.addEventListener('mouseover', () => {
+        if (dragging && !dragTouched.has(i)) {
+          dragTouched.add(i);
+          applySlot(i, dragSelect);
+        }
+      });
+
+    // Other columns: shadow
+    } else if (selected.has(i)) {
+      const h = localHour(ts, tz);
+      if (h >= 9 && h < 18)       slotEl.classList.add('sh-work');
+      else if (h >= 18 && h < 22) slotEl.classList.add('sh-eve');
+      else                         slotEl.classList.add('sh-night');
+    }
+
+    col.appendChild(slotEl);
+  }
+
+  return col;
+}
+
+function applySlot(i, on) {
+  if (on) selected.add(i);
+  else    selected.delete(i);
+  render();
+}
+
+/* ── Controls ────────────────────────────────────────────────────────────── */
+
+document.addEventListener('mouseup', () => {
+  dragging    = false;
+  dragTouched = new Set();
+});
+
+document.getElementById('clearBtn').addEventListener('click', () => {
+  selected.clear();
+  render();
+});
+
+document.getElementById('myTzSel').addEventListener('change', e => {
+  myTz = e.target.value;
+  selected.clear();
+  render();
+});
+
+/* ── Modal ───────────────────────────────────────────────────────────────── */
+
+function openModal() {
+  document.getElementById('addOverlay').classList.remove('hidden');
+  document.getElementById('newLabel').value = '';
+  document.getElementById('newLabel').focus();
+}
+
+function closeModal() {
+  document.getElementById('addOverlay').classList.add('hidden');
+}
+
+document.getElementById('cancelBtn').addEventListener('click', closeModal);
+document.getElementById('addOverlay').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeModal();
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeModal();
+});
+
+document.getElementById('confirmBtn').addEventListener('click', () => {
+  const tz    = document.getElementById('newTzSel').value;
+  const input = document.getElementById('newLabel').value.trim();
+  const label = input || TZ_LIST.find(t => t.tz === tz)?.label || tz;
+  teamCols.push({ label, tz });
+  closeModal();
+  render();
+});
+
+/* ── Init ────────────────────────────────────────────────────────────────── */
+
+function populateSelects() {
+  const sel1 = document.getElementById('myTzSel');
+  const sel2 = document.getElementById('newTzSel');
+  TZ_LIST.forEach(({ label, tz }) => {
+    sel1.appendChild(new Option(label, tz, false, tz === myTz));
+    sel2.appendChild(new Option(label, tz));
+  });
+}
+
+// Remove myTz from default team cols to avoid duplication
+function dedupeTeam() {
+  teamCols = teamCols.filter(c => c.tz !== myTz);
+}
+
+populateSelects();
+dedupeTeam();
+render();
+
+// Scroll to show 9am area on load
+const gridOuter = document.getElementById('gridOuter');
+gridOuter.scrollTop = 0;
+
+// Redraw every minute to advance now-line
+setInterval(render, 60_000);
+</script>
+</body>
+</html>
